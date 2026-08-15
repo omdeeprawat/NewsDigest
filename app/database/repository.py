@@ -1,14 +1,16 @@
-from typing import Optional, List
-from sqlalchemy.orm import Session
-from .connection import get_session
 from datetime import datetime
-from .models import YouTubeVideo, OpenAIArticle, AnthropicArticle
+
+from sqlalchemy.orm import Session
+
+from .connection import get_session
+from .models import AnthropicArticle, OpenAIArticle, YouTubeVideo
+
 
 class Repository:
-  def __init__(self,session: Optional[Session] = None):
+  def __init__(self,session: Session | None = None):
     self.session = session or get_session()
 
-  def create_youtube_video(self, video_id: str, title: str, url: str, channel_id: str, published_at: datetime, description: str = "",transcript: Optional[str] = None)-> Optional[YouTubeVideo]:
+  def create_youtube_video(self, video_id: str, title: str, url: str, channel_id: str, published_at: datetime, description: str = "",transcript: str | None = None)-> YouTubeVideo | None:
 
     existing = self.session.query(YouTubeVideo).filter_by(video_id=video_id).first()
     if existing:
@@ -27,7 +29,7 @@ class Repository:
     self.session.commit()
     return video
 
-  def create_openai_article(self, guid: str, title: str, url: str, description: str, published_at: datetime, category: Optional[str] = None) -> Optional[OpenAIArticle]:
+  def create_openai_article(self, guid: str, title: str, url: str, description: str, published_at: datetime, category: str | None = None) -> OpenAIArticle | None:
 
     existing = self.session.query(OpenAIArticle).filter_by(guid=guid).first()
     if existing:
@@ -45,7 +47,7 @@ class Repository:
     self.session.commit()
     return article
 
-  def create_anthropic_article(self, guid: str, title: str, url: str, description: str, published_at: datetime, category: Optional[str] = None) -> Optional[AnthropicArticle]:
+  def create_anthropic_article(self, guid: str, title: str, url: str, description: str, published_at: datetime, category: str | None = None) -> AnthropicArticle | None:
       existing = self.session.query(AnthropicArticle).filter_by(guid=guid).first()
       if existing:
         return None
@@ -63,7 +65,7 @@ class Repository:
       return article
       
 
-  def bulk_create_youtube_videos(self, videos: List[dict]) -> int:
+  def bulk_create_youtube_videos(self, videos: list[dict]) -> int:
     new_videos = []
     for v in videos:
       existing = self.session.query(YouTubeVideo).filter_by(video_id=v["video_id"]).first()
@@ -83,7 +85,7 @@ class Repository:
       self.session.commit()
     return len(new_videos)
 
-  def bulk_create_openai_articles(self, articles: List[dict]) -> int:
+  def bulk_create_openai_articles(self, articles: list[dict]) -> int:
     new_articles = []
     for a in articles:
       existing = self.session.query(OpenAIArticle).filter_by(guid=a["guid"]).first()
@@ -102,7 +104,7 @@ class Repository:
       self.session.commit()
     return len(new_articles)
 
-  def bulk_create_anthropic_articles(self, articles: List[dict]) -> int:  
+  def bulk_create_anthropic_articles(self, articles: list[dict]) -> int:  
     new_articles = []
     for a in articles:
       existing = self.session.query(AnthropicArticle).filter_by(guid=a["guid"]).first()
@@ -120,6 +122,23 @@ class Repository:
       self.session.bulk_save_objects(new_articles)
       self.session.commit()
     return len(new_articles)
+
+  def get_anthropic_articles_without_markdown(self, limit: int | None = None) -> list[AnthropicArticle]:
+    query = self.session.query(AnthropicArticle).filter(AnthropicArticle.markdown.is_(None))
+    if limit:
+      query = query.limit(limit)
+    return query.all()
+
+  def update_anthropic_article_markdown(self, guid: str, markdown: str) -> None:
+    article = self.session.query(AnthropicArticle).filter_by(guid=guid).first()
+    if article:
+      article.markdown = markdown
+      self.session.commit()
+      return True
+    return False
+
+
+  
 
   
 
