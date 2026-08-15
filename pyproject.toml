@@ -3,5 +3,20 @@ name = "news-digest"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.12"
+dependencies = [
+    "feedparser>=6.0.14",
+    "markdown>=3.10.3",
+    "psycopg2-binary>=2.9.12",
+    "pydantic",
+    "python-dotenv>=1.2.2",
+    "requests>=2.34.2",
+    "sqlalchemy>=2.0.51",
+    "trafilatura>=2.2.0",
+    "youtube-transcript-api",
+]
+
+[dependency-groups]
+dev = [
+  "ipykernel>=7.1.0"
+]
