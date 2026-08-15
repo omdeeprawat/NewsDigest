@@ -1,9 +1,9 @@
-from pydantic import BaseModel
+from datetime import UTC, datetime, timedelta
+
 import feedparser
-from datetime import datetime, timedelta, timezone
+from pydantic import BaseModel
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
-from typing import Optional
+from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
 
 
 class Transcript(BaseModel):
@@ -15,7 +15,7 @@ class ChannelVideo(BaseModel):
   video_id: str
   published_at: datetime
   description: str
-  transcript: Optional[str] = None
+  transcript: str | None = None
 
 
 class YouTubeScraper:
@@ -40,7 +40,7 @@ class YouTubeScraper:
     return video_url  
 
 
-  def get_transcript(self, video_id: str) -> Optional[Transcript]:
+  def get_transcript(self, video_id: str) -> Transcript | None:
     """
     Fetches the transcript for a given YouTube video ID.
     """
@@ -64,12 +64,12 @@ class YouTubeScraper:
     feed = feedparser.parse(rss_url)
     if not feed.entries:
       return []
-    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+    cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
     videos = []
     for entry in feed.entries:
       if "/shorts/" in entry.link:
         continue 
-      published_time = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+      published_time = datetime(*entry.published_parsed[:6], tzinfo=UTC)
       if published_time > cutoff_time:
         video_id = self._extract_video_id(entry.link)
         videos.append(ChannelVideo(

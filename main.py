@@ -1,5 +1,6 @@
 from app.runner import run_scrapers
 
+
 def main(hours=24):
   results = run_scrapers(hours=hours)
   print(f"youtube videos : {len(results['youtube'])}")

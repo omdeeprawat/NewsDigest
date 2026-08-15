@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+import logging
+from datetime import UTC, datetime, timedelta
+
 import feedparser
 import requests
 import trafilatura
 from pydantic import BaseModel
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class AnthropicArticle(BaseModel):
   url: str
   guid: str
   published_at: datetime
-  category: Optional[str] = None
+  category: str | None = None
 
 
 class AnthropicScraper:
@@ -32,11 +32,11 @@ class AnthropicScraper:
       }
     )
 
-  def get_articles(self, hours: int = 24) -> List[AnthropicArticle]:
-    now = datetime.now(timezone.utc)
+  def get_articles(self, hours: int = 24) -> list[AnthropicArticle]:
+    now = datetime.now(UTC)
     cutoff_time = now - timedelta(hours=hours)
 
-    articles: List[AnthropicArticle] = []
+    articles: list[AnthropicArticle] = []
     seen_guids = set()
 
     for rss_url in self.rss_urls:
@@ -53,7 +53,7 @@ class AnthropicScraper:
 
         published_time = datetime(
           *published_parsed[:6],
-          tzinfo=timezone.utc,
+          tzinfo=UTC,
         )
 
         if published_time < cutoff_time:
@@ -84,7 +84,7 @@ class AnthropicScraper:
     articles.sort(key=lambda article: article.published_at, reverse=True)
     return articles
 
-  def url_to_markdown(self, url: str) -> Optional[str]:
+  def url_to_markdown(self, url: str) -> str | None:
     try:
       response = self.session.get(url, timeout=20)
       response.raise_for_status()
@@ -99,11 +99,11 @@ class AnthropicScraper:
 
       return markdown
 
-    except requests.RequestException as e:
+    except requests.RequestException:
       logger.exception("failed to fetch %s", url)
       return None
 
-    except Exception as e:
+    except Exception:
       logger.exception("Failed to extract content from %s", url)
       return None
 

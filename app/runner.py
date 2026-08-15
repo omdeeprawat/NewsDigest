@@ -1,11 +1,8 @@
-from .scrapers.anthropic import AnthropicScraper
-from .scrapers.openai import OpenAIScraper
-from .scrapers.youtube import YouTubeScraper, ChannelVideo
 from .config import YOUTUBE_CHANNELS
 from .database.repository import Repository
-
-
-
+from .scrapers.anthropic import AnthropicScraper
+from .scrapers.openai import OpenAIScraper
+from .scrapers.youtube import YouTubeScraper
 def run_scrapers(hours: int=24) -> dict:
   """
   Run all scrapers and return a dictionary with the results.

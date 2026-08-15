@@ -1,8 +1,8 @@
-from datetime import datetime, timezone, timedelta
-from typing import Optional
-from pydantic import BaseModel
+from datetime import UTC, datetime, timedelta
+
 import feedparser
-from typing import List
+from pydantic import BaseModel
+
 
 class OpenAIArticle(BaseModel):
   title: str
@@ -10,21 +10,21 @@ class OpenAIArticle(BaseModel):
   url: str
   guid: str
   published_at: datetime
-  category: Optional[str] = None
+  category: str | None = None
 
 
 class OpenAIScraper:
   def __init__(self):
     self.rss_url = "https://openai.com/news/rss.xml"
 
-  def get_articles(self, hours: int = 24) -> List[OpenAIArticle]:
+  def get_articles(self, hours: int = 24) -> list[OpenAIArticle]:
     """
     Fetches the latest articles from OpenAI's RSS feed.
     """
     feed = feedparser.parse(self.rss_url)
     if not feed.entries:
       return []
-    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+    cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
     articles = []
 
     for entry in feed.entries:
@@ -32,7 +32,7 @@ class OpenAIScraper:
       if not published_parsed:
         continue
       
-      published_time = datetime(*published_parsed[:6], tzinfo=timezone.utc)
+      published_time = datetime(*published_parsed[:6], tzinfo=UTC)
       if published_time >= cutoff_time: 
 
         tags = entry.get("tags")
@@ -49,5 +49,5 @@ class OpenAIScraper:
 
 if __name__ == "__main__":
   scraper = OpenAIScraper()
-  articles : List[OpenAIArticle] = scraper.get_articles(hours=24)
+  articles : list[OpenAIArticle] = scraper.get_articles(hours=24)
   print(articles)
