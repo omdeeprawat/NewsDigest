@@ -1,5 +1,9 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from app.database.repository import Repository
-from app.scrapers.anthropic import AnthropicsScraper
+from app.scrapers.anthropic import AnthropicScraper
 
 
 def process_anthropic_markdown(limit: int | None = None) -> dict:
@@ -10,7 +14,7 @@ def process_anthropic_markdown(limit: int | None = None) -> dict:
   limit (Optional[int]): The maximum number of articles to process. If None, process all articles.
   """
   # initialize the scraper and repository
-  scraper = AnthropicsScraper()
+  scraper = AnthropicScraper()
   repo = Repository()
 
   # Fetch articles from the Anthropics website
