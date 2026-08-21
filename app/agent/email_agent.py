@@ -3,12 +3,13 @@ from datetime import datetime
 from typing import List, Optional
 from dotenv import load_dotenv
 from groq import Groq
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from app.profiles.user_profile import USER_PROFILE  
 
 load_dotenv()
 
 class EmailIntroduction(BaseModel):
+  model_config = ConfigDict(extra="forbid")
   introduction: str = Field(description="2-3 sentence overview of the top ranked AI articles")
 
 class RankedArticleDetail(BaseModel):
@@ -82,14 +83,14 @@ class EmailAgent:
 
     top_articles = ranked_articles[:10]
     article_summaries = "\n\n".join(
-        [
-            (
-                f"Article {idx + 1}:\n"
-                f"Title: {article.title}\n"
-                f"Summary: {article.summary}"
-            )
-            for idx, article in enumerate(top_articles)
-        ]
+      [
+        (
+          f"Article {idx + 1}:\n"
+          f"Title: {article.title}\n"
+          f"Summary: {article.summary}"
+        )
+          for idx, article in enumerate(top_articles)
+      ]
     )
 
     user_prompt = f"""
@@ -116,7 +117,6 @@ Do not include:
 - URLs
 - Information that is not present in the supplied articles
 """
-
     try:
       response = self.client.chat.completions.create(
         model=self.model,
@@ -145,7 +145,7 @@ Do not include:
 
       raw_content = response.choices[0].message.content
       if not raw_content:
-          raise ValueError("Groq returned an empty response")
+        raise ValueError("Groq returned an empty response")
 
       result = EmailIntroduction.model_validate_json(raw_content)
       return result
