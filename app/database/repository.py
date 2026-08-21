@@ -1,5 +1,4 @@
-from datetime import datetime, timezone
-
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
 from .connection import get_session
@@ -30,7 +29,6 @@ class Repository:
     return video
 
   def create_openai_article(self, guid: str, title: str, url: str, description: str, published_at: datetime, category: str | None = None) -> OpenAIArticle | None:
-
     existing = self.session.query(OpenAIArticle).filter_by(guid=guid).first()
     if existing:
       return None
@@ -47,22 +45,23 @@ class Repository:
     self.session.commit()
     return article
 
-  def create_anthropic_article(self, guid: str, title: str, url: str, description: str, published_at: datetime, category: str | None = None) -> AnthropicArticle | None:
-      existing = self.session.query(AnthropicArticle).filter_by(guid=guid).first()
-      if existing:
-        return None
 
-      article = AnthropicArticle(
-        guid=guid,
-        title=title,
-        url=url,
-        published_at=published_at,
-        description=description,
-        category=category,
-      )
-      self.session.add(article)
-      self.session.commit()
-      return article
+  def create_anthropic_article(self, guid: str, title: str, url: str, description: str, published_at: datetime, category: str | None = None) -> AnthropicArticle | None:
+    existing = self.session.query(AnthropicArticle).filter_by(guid=guid).first()
+    if existing:
+      return None
+
+    article = AnthropicArticle(
+      guid=guid,
+      title=title,
+      url=url,
+      published_at=published_at,
+      description=description,
+      category=category,
+    )
+    self.session.add(article)
+    self.session.commit()
+    return article
       
 
   def bulk_create_youtube_videos(self, videos: list[dict]) -> int:
@@ -85,6 +84,7 @@ class Repository:
       self.session.commit()
     return len(new_videos)
 
+
   def bulk_create_openai_articles(self, articles: list[dict]) -> int:
     new_articles = []
     for a in articles:
@@ -103,6 +103,7 @@ class Repository:
       self.session.bulk_save_objects(new_articles)
       self.session.commit()
     return len(new_articles)
+
 
   def bulk_create_anthropic_articles(self, articles: list[dict]) -> int:  
     new_articles = []
@@ -123,11 +124,13 @@ class Repository:
       self.session.commit()
     return len(new_articles)
 
+
   def get_anthropic_articles_without_markdown(self, limit: int | None = None) -> list[AnthropicArticle]:
     query = self.session.query(AnthropicArticle).filter(AnthropicArticle.markdown.is_(None))
     if limit:
       query = query.limit(limit)
     return query.all()
+
 
   def update_anthropic_article_markdown(self, guid: str, markdown: str) -> None:
     article = self.session.query(AnthropicArticle).filter_by(guid=guid).first()
@@ -137,12 +140,14 @@ class Repository:
       return True
     return False
 
+
   def get_youtube_videos_without_transcript(self, limit: int | None = None) -> list[YouTubeVideo]:
     query = self.session.query(YouTubeVideo).filter(YouTubeVideo.transcript.is_(None))
     if limit:
       query = query.limit(limit)
     return query.all()
   
+
   def update_youtube_video_transcript(self, video_id: str, transcript: str) -> None:
     video = self.session.query(YouTubeVideo).filter_by(video_id=video_id).first()
     if video:
@@ -209,19 +214,19 @@ class Repository:
     
     return articles
   
+
   def create_digest(self, article_origin: str, article_id: str, url: str, title: str, summary: str, published_at : Optional[datetime] = None) -> Optional[Digest]:
     digest_id = f"{article_origin}:{article_id}"
     existing = self.session.query(Digest).filter_by(id=digest_id).first()
     if existing:
       return None
     
-    if published_at:
-      if published_at.tzinfo is None:
+    if published_at and published_at.tzinfo is None:
         published_at = published_at.replace(tzinfo=timezone.utc)
-      created_at = published_at
+        created_at = published_at
     else:
-      created_at = datetime.now(timezone.utc)
-    
+        created_at = datetime.now(timezone.utc)
+
     digest = Digest(
       id=digest_id,
       article_origin=article_origin,
@@ -229,18 +234,22 @@ class Repository:
       url=url,
       title=title,
       summary=summary,
-      created_at=created_at
+      published_at=published_at,
+      created_at=datetime.now(timezone.utc)
     )
     self.session.add(digest)
     self.session.commit()
     return digest
 
+
   def get_recent_digests(self, hours: int = 24) -> List[Dict[str, Any]]:
     cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
-    digests = self.session.query(Digest).filter(
-      Digest.created_at >= cutoff_time
-    ).order_by(Digest.created_at.desc()).all()
-    
+    digests = (
+      self.session.query(Digest)
+      .filter(Digest.published_at >= cutoff_time)
+      .order_by(Digest.published_at.desc())
+      .all()
+    )
     return [
       {
         "id": d.id,
@@ -249,6 +258,7 @@ class Repository:
         "url": d.url,
         "title": d.title,
         "summary": d.summary,
+        "published_at": d.published_at,
         "created_at": d.created_at
       }
       for d in digests
