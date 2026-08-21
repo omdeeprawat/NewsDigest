@@ -1,33 +1,26 @@
 import os
 import json
 from typing import List
-
 from groq import Groq
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from dotenv import load_dotenv
 
 load_dotenv()
 
-
 class RankedArticle(BaseModel):
-  digest_id: str = Field(
-    description="The ID of the digest (article_origin:article_id)"
-  )
+  model_config = ConfigDict(extra="forbid")
+  digest_id: str = Field(description="The ID of the digest (article_origin:article_id)")
   relevance_score: float = Field(
     description="Relevance score from 0.0 to 10.0",
     ge=0.0,
     le=10.0
   )
-  rank: int = Field(
-    description="Rank position, where 1 is most relevant",
-    ge=1
-  )
-  reasoning: str = Field(
-    description="Brief explanation of why this article is ranked here"
-  )
+  rank: int = Field(description="Rank position, where 1 is most relevant", ge=1)
+  reasoning: str = Field(description="Brief explanation of why this article is ranked here")
 
 
 class RankedDigestList(BaseModel):
+  model_config = ConfigDict(extra="forbid")
   articles: List[RankedArticle]
 
 
@@ -112,11 +105,7 @@ Preferences:
 {pref_text}
 """
 
-  def rank_digests(
-    self,
-    digests: List[dict]
-  ) -> List[RankedArticle]:
-
+  def rank_digests(self, digests: List[dict]) -> List[RankedArticle]:
     if not digests:
       return []
 
@@ -188,11 +177,7 @@ Rank 1 must be the most relevant digest.
       return []
 
 
-  def _validate_ranking(
-    self,
-    ranked_articles: List[RankedArticle],
-    digests: List[dict]
-  ) -> List[RankedArticle]:
+  def _validate_ranking(self, ranked_articles: List[RankedArticle], digests: List[dict]) -> List[RankedArticle]:
     expected_ids = {
       digest["id"]
       for digest in digests
@@ -215,9 +200,7 @@ Rank 1 must be the most relevant digest.
       for article in ranked_articles
     ]
 
-    expected_ranks = list(
-      range(1, len(digests) + 1)
-    )
+    expected_ranks = list(range(1, len(digests) + 1))
 
     if sorted(ranks) != expected_ranks:
       raise ValueError(
@@ -248,8 +231,6 @@ Rank 1 must be the most relevant digest.
     ]
 
     if score_order != rank_order:
-      raise ValueError(
-        "Ranking order does not match relevance scores."
-      )
+      raise ValueError("Ranking order does not match relevance scores.")
 
     return sorted_by_rank
