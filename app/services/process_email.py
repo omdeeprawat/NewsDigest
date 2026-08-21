@@ -1,11 +1,13 @@
 import logging
 from dotenv import load_dotenv
-load_dotenv()
 from app.agent.email_agent import EmailAgent, RankedArticleDetail, EmailDigestResponse
 from app.agent.curator_agent import CuratorAgent
 from app.profiles.user_profile import USER_PROFILE
 from app.database.repository import Repository
 from app.services.email_service import send_email, digest_to_html
+from datetime import datetime
+
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,7 +23,7 @@ def generate_email_digest(
 ) -> EmailDigestResponse:
 
     curator = CuratorAgent(USER_PROFILE)
-    email_agent = EmailAgent(USER_PROFILE)
+    email_agent = EmailAgent()
     repo = Repository()
 
     digests = repo.get_recent_digests(hours=hours    )
@@ -55,7 +57,7 @@ def generate_email_digest(
         for a in ranked_articles
     ]
 
-    email_digest = email_agent.create_email_digest_response(
+    email_digest = email_agent.create_email_digest(
         ranked_articles=article_details,
         total_ranked=len(ranked_articles),
         limit=top_n
@@ -63,7 +65,7 @@ def generate_email_digest(
 
     logger.info("Email digest generated successfully")
     logger.info("\n=== Email Introduction ===")
-    logger.info(email_digest.introduction.greeting)
+    logger.info(email_digest.greeting)
     logger.info(f"\n{email_digest.introduction.introduction}")
 
     return email_digest
@@ -81,7 +83,7 @@ def send_digest_email(
         markdown_content = result.to_markdown()
         html_content = digest_to_html(result)
 
-        subject = f"Daily AI News Digest - {result.introduction.greeting.split('for ')[-1] if 'for ' in result.introduction.greeting else 'Today'}"
+        subject = f"Daily AI News Digest - {datetime.now():%B %d, %Y}"
 
         send_email(
             subject=subject,
@@ -93,7 +95,7 @@ def send_digest_email(
         return {
             "success": True,
             "subject": subject,
-            "articles_count": len(result.articles)
+            "articles_count": len(result.ranked_articles)
         }
 
     except ValueError as e:
