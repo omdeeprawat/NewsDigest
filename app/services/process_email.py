@@ -5,7 +5,7 @@ from app.agent.email_agent import EmailAgent, RankedArticleDetail, EmailDigestRe
 from app.agent.curator_agent import CuratorAgent
 from app.profiles.user_profile import USER_PROFILE
 from app.database.repository import Repository
-from app.services.email import send_email, digest_to_html
+from app.services.email_service import send_email, digest_to_html
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,7 +24,8 @@ def generate_email_digest(
     email_agent = EmailAgent(USER_PROFILE)
     repo = Repository()
 
-    digests = repo.get_recent_digests(hours=hours)
+    digests = repo.get_recent_digests(hours=hours    )
+
     total = len(digests)
 
     if total == 0:
@@ -38,10 +39,7 @@ def generate_email_digest(
         logger.error("Failed to rank digests")
         raise ValueError("Failed to rank articles")
 
-    logger.info(
-        f"Generating email digest with "
-        f"top {top_n} articles"
-    )
+    logger.info(f"Generating email digest with top {top_n} articles")
 
     article_details = [
         RankedArticleDetail(
@@ -49,38 +47,10 @@ def generate_email_digest(
             rank=a.rank,
             relevance_score=a.relevance_score,
             reasoning=a.reasoning,
-            title=next(
-                (
-                    d["title"]
-                    for d in digests
-                    if d["id"] == a.digest_id
-                ),
-                ""
-            ),
-            summary=next(
-                (
-                    d["summary"]
-                    for d in digests
-                    if d["id"] == a.digest_id
-                ),
-                ""
-            ),
-            url=next(
-                (
-                    d["url"]
-                    for d in digests
-                    if d["id"] == a.digest_id
-                ),
-                ""
-            ),
-            article_origin=next(
-                (
-                    d["article_origin"]
-                    for d in digests
-                    if d["id"] == a.digest_id
-                ),
-                ""
-            )
+            title=next((d["title"] for d in digests if d["id"] == a.digest_id), "")
+            summary=next((d["summary"] for d in digests if d["id"] == a.digest_id), ""),
+            url=next((d["url"] for d in digests if d["id"] == a.digest_id), ""),
+            article_origin=next((d["article_origin"] for d in digests if d["id"] == a.digest_id), ""),
         )
         for a in ranked_articles
     ]
@@ -90,13 +60,13 @@ def generate_email_digest(
         total_ranked=len(ranked_articles),
         limit=top_n
     )
+
     logger.info("Email digest generated successfully")
     logger.info("\n=== Email Introduction ===")
     logger.info(email_digest.introduction.greeting)
     logger.info(f"\n{email_digest.introduction.introduction}")
 
     return email_digest
-
 
 def send_digest_email(
     hours: int = 24,
@@ -110,12 +80,9 @@ def send_digest_email(
         )
         markdown_content = result.to_markdown()
         html_content = digest_to_html(result)
-        subject = (
-            f"Daily AI News Digest - "
-            f"{result.introduction.greeting.split('for ')[-1]" 
-            f"if 'for ' in result.introduction.greeting "
-            f"else 'Today'"}
-        )
+
+        subject = f"Daily AI News Digest - {result.introduction.greeting.split('for ')[-1] if 'for ' in result.introduction.greeting else 'Today'}"
+
         send_email(
             subject=subject,
             body_text=markdown_content,
@@ -123,7 +90,6 @@ def send_digest_email(
         )
 
         logger.info("Email sent successfully!")
-
         return {
             "success": True,
             "subject": subject,
@@ -137,11 +103,16 @@ def send_digest_email(
             "error": str(e)
         }
 
+
 if __name__ == "__main__":
-    result = send_digest_email( hours=24, top_n=10)
+    result = send_digest_email(
+        hours=24,
+        top_n=10
+    )
     if result["success"]:
         print("\n=== Email Digest Sent ===")
         print(f"Subject: {result['subject']}")
         print(f"Articles: {result['articles_count']}")
+
     else:
         print(f"Error: {result['error']}")
