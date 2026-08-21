@@ -1,13 +1,11 @@
 import os
-import json
 from typing import Optional
-
 from groq import Groq
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
 
 load_dotenv()
-
 
 class DigestOutput(BaseModel):
   title: str
@@ -40,12 +38,11 @@ Guidelines:
 
 class DigestAgent:
   def __init__(self):
-    self.client = Groq(
-      api_key=os.getenv("GROQ_API_KEY")
-    )
+    self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     self.model = "openai/gpt-oss-20b"
     self.system_prompt = SYSTEM_PROMPT
     self.schema = DigestOutput.model_json_schema()
+    self.schema["additionalProperties"] = False
 
   def generate_digest(
     self,
@@ -69,12 +66,11 @@ Original title:
 Content:
 {content[:16000]}
 """
-
     try:
       response = self.client.chat.completions.create(
         model=self.model,
         temperature=0.3,
-        max_completion_tokens=300,
+        max_completion_tokens=500,
         include_reasoning=False,
         messages=[
           {
@@ -105,9 +101,7 @@ Content:
         )
         return None
 
-      result = json.loads(content)
-
-      return DigestOutput.model_validate(result)
+      return DigestOutput.model_validate_json(content)
 
     except Exception as e:
       print(
