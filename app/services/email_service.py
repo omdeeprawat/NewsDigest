@@ -1,104 +1,243 @@
-import logging
+import os
+import smtplib
+import html
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
+import markdown
 
 load_dotenv()
 
-from app.agent.email_agent import EmailAgent, RankedArticleDetail, EmailDigestResponse
-from app.agent.curator_agent import CuratorAgent
-from app.profiles.user_profile import USER_PROFILE
-from app.database.repository import Repository
-from app.services.email_service import send_email, digest_to_html
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+MY_EMAIL = os.getenv("MY_EMAIL")
+APP_PASSWORD = os.getenv("APP_PASSWORD")
 
 
-def generate_email_digest(hours: int = 24, top_n: int = 10) -> EmailDigestResponse:
-    curator = CuratorAgent(USER_PROFILE)
-    email_agent = EmailAgent(USER_PROFILE)
-    repo = Repository()
+def send_email(subject: str, body_text: str, body_html: str = None, recipients: list = None):
+    if recipients is None:
+        if not MY_EMAIL:
+            raise ValueError("MY_EMAIL environment variable is not set")
+        recipients = [MY_EMAIL]
     
-    digests = repo.get_recent_digests(hours=hours)
-    total = len(digests)
+    recipients = [r for r in recipients if r is not None]
+    if not recipients:
+        raise ValueError("No valid recipients provided")
     
-    if total == 0:
-        logger.warning(f"No digests found from the last {hours} hours")
-        raise ValueError("No digests available")
+    if not MY_EMAIL:
+        raise ValueError("MY_EMAIL environment variable is not set")
+    if not APP_PASSWORD:
+        raise ValueError("APP_PASSWORD environment variable is not set")
     
-    logger.info(f"Ranking {total} digests for email generation")
-    ranked_articles = curator.rank_digests(digests)
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = MY_EMAIL
+    msg["To"] = ", ".join(recipients)
     
-    if not ranked_articles:
-        logger.error("Failed to rank digests")
-        raise ValueError("Failed to rank articles")
+    part1 = MIMEText(body_text, "plain")
+    msg.attach(part1)
     
-    logger.info(f"Generating email digest with top {top_n} articles")
+    if body_html:
+        part2 = MIMEText(body_html, "html")
+        msg.attach(part2)
     
-    article_details = [
-        RankedArticleDetail(
-            digest_id=a.digest_id,
-            rank=a.rank,
-            relevance_score=a.relevance_score,
-            reasoning=a.reasoning,
-            title=next((d["title"] for d in digests if d["id"] == a.digest_id), ""),
-            summary=next((d["summary"] for d in digests if d["id"] == a.digest_id), ""),
-            url=next((d["url"] for d in digests if d["id"] == a.digest_id), ""),
-            article_origin=next((d["article_origin"] for d in digests if d["id"] == a.digest_id), "")
-        )
-        for a in ranked_articles
-    ]
-    
-    email_digest = email_agent.create_email_digest_response(
-        ranked_articles=article_details,
-        total_ranked=len(ranked_articles),
-        limit=top_n
-    )
-    
-    logger.info("Email digest generated successfully")
-    logger.info(f"\n=== Email Introduction ===")
-    logger.info(email_digest.introduction.greeting)
-    logger.info(f"\n{email_digest.introduction.introduction}")
-    
-    return email_digest
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(MY_EMAIL, APP_PASSWORD)
+        smtp.sendmail(MY_EMAIL, recipients, msg.as_string())
 
 
-def send_digest_email(hours: int = 24, top_n: int = 10) -> dict:
-    try:
-        result = generate_email_digest(hours=hours, top_n=top_n)
-        markdown_content = result.to_markdown()
-        html_content = digest_to_html(result)
-        
-        subject = f"Daily AI News Digest - {result.introduction.greeting.split('for ')[-1] if 'for ' in result.introduction.greeting else 'Today'}"
-        
-        send_email(
-            subject=subject,
-            body_text=markdown_content,
-            body_html=html_content
-        )
-        
-        logger.info("Email sent successfully!")
-        return {
-            "success": True,
-            "subject": subject,
-            "articles_count": len(result.articles)
-        }
-    except ValueError as e:
-        logger.error(f"Error sending email: {e}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+def markdown_to_html(markdown_text: str) -> str:
+    html = markdown.markdown(markdown_text, extensions=['extra', 'nl2br'])
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }}
+        h2 {{
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-top: 24px;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }}
+        h3 {{
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-top: 20px;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }}
+        p {{
+            margin: 8px 0;
+            color: #4a4a4a;
+        }}
+        strong {{
+            font-weight: 600;
+            color: #1a1a1a;
+        }}
+        em {{
+            font-style: italic;
+            color: #666;
+        }}
+        a {{
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 500;
+        }}
+        a:hover {{
+            text-decoration: underline;
+        }}
+        hr {{
+            border: none;
+            border-top: 1px solid #e5e5e5;
+            margin: 20px 0;
+        }}
+        .greeting {{
+            font-size: 16px;
+            font-weight: 500;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }}
+        .introduction {{
+            color: #4a4a4a;
+            margin-bottom: 20px;
+        }}
+        .article-link {{
+            display: inline-block;
+            margin-top: 8px;
+            color: #0066cc;
+            font-size: 14px;
+        }}
+    </style>
+</head>
+<body>
+{html}
+</body>
+</html>"""
+
+
+def digest_to_html(digest_response) -> str:
+    from app.agent.email_agent import EmailDigestResponse
+    
+    if not isinstance(digest_response, EmailDigestResponse):
+        return markdown_to_html(digest_response.to_markdown() if hasattr(digest_response, 'to_markdown') else str(digest_response))
+    
+    html_parts = []
+    greeting_html = markdown.markdown(digest_response.greeting, extensions=['extra', 'nl2br'])
+    introduction_html = markdown.markdown(digest_response.introduction.introduction, extensions=['extra', 'nl2br'])
+    html_parts.append(f'<div class="greeting">{greeting_html}</div>')
+    html_parts.append(f'<div class="introduction">{introduction_html}</div>')
+    html_parts.append('<hr>')
+    
+    for article in digest_response.ranked_articles:
+        html_parts.append(f'<h3>{html.escape(article.title)}</h3>')
+        summary_html = markdown.markdown(article.summary, extensions=['extra', 'nl2br'])
+        html_parts.append(f'<div>{summary_html}</div>')
+        html_parts.append(f'<p><a href="{html.escape(article.url)}" class="article-link">Read more →</a></p>')
+        html_parts.append('<hr>')
+    
+    html_content = '\n'.join(html_parts)
+    
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }}
+        h3 {{
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-top: 20px;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }}
+        p {{
+            margin: 8px 0;
+            color: #4a4a4a;
+        }}
+        strong {{
+            font-weight: 600;
+            color: #1a1a1a;
+        }}
+        em {{
+            font-style: italic;
+            color: #666;
+        }}
+        a {{
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 500;
+        }}
+        a:hover {{
+            text-decoration: underline;
+        }}
+        hr {{
+            border: none;
+            border-top: 1px solid #e5e5e5;
+            margin: 20px 0;
+        }}
+        .greeting {{
+            font-size: 16px;
+            font-weight: 500;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }}
+        .introduction {{
+            color: #4a4a4a;
+            margin-bottom: 20px;
+        }}
+        .article-link {{
+            display: inline-block;
+            margin-top: 8px;
+            color: #0066cc;
+            font-size: 14px;
+        }}
+        .greeting p {{
+            margin: 0;
+        }}
+        .introduction p {{
+            margin: 0;
+        }}
+        div {{
+            margin: 8px 0;
+            color: #4a4a4a;
+        }}
+        div p {{
+            margin: 4px 0;
+        }}
+    </style>
+</head>
+<body>
+{html_content}
+</body>
+</html>"""
+
+
+def send_email_to_self(subject: str, body: str):
+    if not MY_EMAIL:
+        raise ValueError("MY_EMAIL environment variable is not set. Please set it in your .env file.")
+    send_email(subject, body, recipients=[MY_EMAIL])
 
 
 if __name__ == "__main__":
-    result = send_digest_email(hours=24, top_n=10)
-    if result["success"]:
-        print("\n=== Email Digest Sent ===")
-        print(f"Subject: {result['subject']}")
-        print(f"Articles: {result['articles_count']}")
-    else:
-        print(f"Error: {result['error']}")
+    send_email_to_self("Test from Python", "Hello from my script.")
