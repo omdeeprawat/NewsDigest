@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from sqlalchemy import Column, DateTime, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -50,4 +49,5 @@ class Digest(Base):
   url = Column(String(255), nullable=False)
   title = Column(String(255), nullable=False)
   summary = Column(Text, nullable=False)
+  published_at = Column(DateTime(timezone=True))
   created_at = Column(DateTime, default=datetime.utcnow)
