@@ -82,7 +82,7 @@ class YouTubeScraper:
     return videos
 
 
-  def scrape_channel(self, channel_id : str, hours:int = 150) -> list[ChannelVideo]:
+  def scrape_channel(self, channel_id : str, hours:int = 24) -> list[ChannelVideo]:
     """
     Scrapes the latest videos and their transcripts from a YouTube channel.
     """

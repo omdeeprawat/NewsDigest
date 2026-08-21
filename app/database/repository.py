@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
-
+from typing import Dict, Any, List, Optional
 from .connection import get_session
-from .models import AnthropicArticle, OpenAIArticle, YouTubeVideo
+from .models import AnthropicArticle, OpenAIArticle, YouTubeVideo, Digest
 
 
 class Repository:
@@ -152,6 +152,104 @@ class Repository:
     return False
 
   
-
+  def get_articles_without_digest(self, limit: int | None = None) -> list[Dict[str, Any]]:
+    articles = []
+    seen_ids = set()
+    
+    digests = self.session.query(Digest).all()
+    for d in digests:
+      seen_ids.add(f"{d.article_origin}:{d.article_id}")
+    
+    youtube_videos = self.session.query(YouTubeVideo).filter(
+      YouTubeVideo.transcript.isnot(None),
+      YouTubeVideo.transcript != "__UNAVAILABLE__"
+    ).all()
+    for video in youtube_videos:
+      key = f"youtube:{video.video_id}"
+      if key not in seen_ids:
+        articles.append({
+          "origin": "youtube",
+          "id": video.video_id,
+          "title": video.title,
+          "url": video.url,
+          "content": video.transcript or video.description or "",
+          "published_at": video.published_at
+        })
   
+    openai_articles = self.session.query(OpenAIArticle).all()
+    for article in openai_articles:
+      key = f"openai:{article.guid}"
+      if key not in seen_ids:
+        articles.append({
+          "origin": "openai",
+          "id": article.guid,
+          "title": article.title,
+          "url": article.url,
+          "content": article.description or "",
+          "published_at": article.published_at
+        })
+    
+    anthropic_articles = self.session.query(AnthropicArticle).filter(
+      AnthropicArticle.markdown.isnot(None)
+    ).all()
+    for article in anthropic_articles:
+      key = f"anthropic:{article.guid}"
+      if key not in seen_ids:
+        articles.append({
+          "origin": "anthropic",
+          "id": article.guid,
+          "title": article.title,
+          "url": article.url,
+          "content": article.markdown or article.description or "",
+          "published_at": article.published_at
+        })
+  
+    if limit:
+      articles = articles[:limit]
+    
+    return articles
+  
+  def create_digest(self, article_origin: str, article_id: str, url: str, title: str, summary: str, published_at : Optional[datetime] = None) -> Optional[Digest]:
+    digest_id = f"{article_origin}:{article_id}"
+    existing = self.session.query(Digest).filter_by(id=digest_id).first()
+    if existing:
+      return None
+    
+    if published_at:
+      if published_at.tzinfo is None:
+        published_at = published_at.replace(tzinfo=timezone.utc)
+      created_at = published_at
+    else:
+      created_at = datetime.now(timezone.utc)
+    
+    digest = Digest(
+      id=digest_id,
+      article_origin=article_origin,
+      article_id=article_id,
+      url=url,
+      title=title,
+      summary=summary,
+      created_at=created_at
+    )
+    self.session.add(digest)
+    self.session.commit()
+    return digest
 
+  def get_recent_digests(self, hours: int = 24) -> List[Dict[str, Any]]:
+    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+    digests = self.session.query(Digest).filter(
+      Digest.created_at >= cutoff_time
+    ).order_by(Digest.created_at.desc()).all()
+    
+    return [
+      {
+        "id": d.id,
+        "article_origin": d.article_origin,
+        "article_id": d.article_id,
+        "url": d.url,
+        "title": d.title,
+        "summary": d.summary,
+        "created_at": d.created_at
+      }
+      for d in digests
+    ]

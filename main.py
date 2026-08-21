@@ -1,14 +1,18 @@
-from app.runner import run_scrapers
+from app.daily_runner import run_daily_pipeline
 
-
-def main(hours=24):
-  results = run_scrapers(hours=hours)
-  print(f"youtube videos : {len(results['youtube'])}")
-  print(f"openai articles : {len(results['openai'])}")
-  print(f"anthropic articles : {len(results['anthropic'])}")
-
-  return results
+def main(hours:int=24, top_n: int = 10):
+  return run_daily_pipeline(hours=hours, top_n=top_n)
 
 if __name__ == "__main__":
-    print("__main__ BLOCK STARTED")
-    main(hours = 150)
+  import sys
+    
+  hours = 24
+  top_n = 10
+  
+  if len(sys.argv) > 1:
+    hours = int(sys.argv[1])
+  if len(sys.argv) > 2:
+    top_n = int(sys.argv[2])
+  
+  result = main(hours=hours, top_n=top_n)
+  exit(0 if result["success"] else 1)

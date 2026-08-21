@@ -65,13 +65,10 @@ def run_scrapers(hours: int=24) -> dict:
     "anthropic": anthropic_articles
   }
 
-  if __name__ == "__main__":
-    results = run_scrapers(hours=24)
-    print(f"youtube videos : {len(results['youtube'])}")
-    print(f"openai articles : {len(results['openai'])}")
-    print(f"anthropic articles : {len(results['anthropic'])}")
-
-
 if __name__ == "__main__":
-    print("__main__ BLOCK STARTED")
-    main()
+  results = run_scrapers(hours=24)
+  print(f"youtube videos : {len(results['youtube'])}")
+  print(f"openai articles : {len(results['openai'])}")
+  print(f"anthropic articles : {len(results['anthropic'])}")
+
+
