@@ -3,5 +3,38 @@ name = "news-digest"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.12"
+dependencies = [
+    "feedparser>=6.0.14",
+    "groq>=1.6.0",
+    "markdown>=3.10.3",
+    "psycopg2-binary>=2.9.12",
+    "pydantic",
+    "python-dotenv>=1.2.2",
+    "requests>=2.34.2",
+    "sqlalchemy>=2.0.51",
+    "trafilatura>=2.2.0",
+    "youtube-transcript-api",
+]
+
+[dependency-groups]
+dev = [
+  "ipykernel>=7.1.0",
+  "ruff>=0.16.3",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # Pyflakes
+    "I",   # import sorting
+    "B",   # bugbear
+    "UP",  # pyupgrade
+]
+
+[tool.ruff.format]
+quote-style = "double"
