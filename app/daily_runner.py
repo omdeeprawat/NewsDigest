@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from app.runner import run_scrapers
 from app.services.process_anthropic import process_anthropic_markdown
 from app.services.process_youtube import process_youtube_transcripts
-from app.services.process_digest import process_digests
+from app.services.process_digest import process_digest
 from app.services.process_email import send_digest_email
 
 load_dotenv()
@@ -57,7 +57,7 @@ def run_daily_pipeline(hours: int = 24, top_n: int = 10) -> dict:
                     f"({youtube_result['unavailable']} unavailable)")
         
         logger.info("\n[4/5] Creating digests for articles...")
-        digest_result = process_digests()
+        digest_result = process_digest()
         results["digests"] = digest_result
         logger.info(f"✓ Created {digest_result['processed']} digests "
                     f"({digest_result['failed']} failed out of {digest_result['total']} total)")
