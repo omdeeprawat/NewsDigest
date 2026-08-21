@@ -47,7 +47,7 @@ def generate_email_digest(
             rank=a.rank,
             relevance_score=a.relevance_score,
             reasoning=a.reasoning,
-            title=next((d["title"] for d in digests if d["id"] == a.digest_id), "")
+            title=next((d["title"] for d in digests if d["id"] == a.digest_id), ""),
             summary=next((d["summary"] for d in digests if d["id"] == a.digest_id), ""),
             url=next((d["url"] for d in digests if d["id"] == a.digest_id), ""),
             article_origin=next((d["article_origin"] for d in digests if d["id"] == a.digest_id), ""),
