@@ -31,11 +31,7 @@ class OpenAIScraper:
       published_parsed = getattr(entry, "published_parsed", None)
       if not published_parsed:
         continue
-      
-      print(
-        f"{published_time.isoformat()} | "
-        f"{entry.get('title', '')}"
-    )
+    
       published_time = datetime(*published_parsed[:6], tzinfo=UTC)
       if published_time >= cutoff_time: 
 
