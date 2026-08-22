@@ -5,17 +5,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 load_dotenv()
 
-def get_database_url():
-  user = os.getenv("POSTGRES_USER", "postgres")
-  password = os.getenv("POSTGRES_PASSWORD", "postgres")
-  host = os.getenv("DB_HOST", "localhost")
-  port = os.getenv("DB_PORT", "5432")
-  db = os.getenv("DB_NAME", "newsdigest")
+DATABASE_URL = os.environ["DATABASE_URL"]
 
-  return f"postgresql://{user}:{password}@{host}:{port}/{db}"
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set")
 
-engine = create_engine(get_database_url())
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
 
 def get_session():
   return SessionLocal()
