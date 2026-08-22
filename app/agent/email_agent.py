@@ -121,7 +121,7 @@ Do not include:
       response = self.client.chat.completions.create(
         model=self.model,
         temperature=0.4,
-        max_completion_tokens=300,
+        max_completion_tokens=600,
         include_reasoning=False,
         messages=[
           {
