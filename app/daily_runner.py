@@ -62,17 +62,42 @@ def run_daily_pipeline(hours: int = 24, top_n: int = 10) -> dict:
         results["digests"] = digest_result
         logger.info(f"✓ Created {digest_result['processed']} digests "
                     f"({digest_result['failed']} failed out of {digest_result['total']} total)")
-      
-        logger.info("\n[5/5] Generating and sending email digest...")
-        email_result = send_digest_email(hours=hours, top_n=top_n)
-        results["email"] = email_result
-        
-        if email_result["success"]:
-            logger.info(f"✓ Email sent successfully with {email_result['articles_count']} articles")
+        if digest_result["processed"] == 0:
+            logger.info("No new digests created. Skipping email.")
+            results["email"] = {
+                "success": True,
+                "skipped": True,
+                "reason": "No new digests created"
+            }
             results["success"] = True
         else:
-            logger.error(f"✗ Failed to send email: {email_result.get('error', 'Unknown error')}")
-    
+            logger.info("\n[5/5] Generating and sending email digest...")
+            email_result = send_digest_email(hours=hours, top_n=top_n)
+            results["email"] = email_result
+            
+            if email_result["success"]:
+                logger.info(f"✓ Email sent successfully with {email_result['articles_count']} articles")
+                results["success"] = True
+            else:
+                logger.error(f"✗ Failed to send email: {email_result.get('error', 'Unknown error')}")
+                email_result = send_digest_email(
+                    hours=hours,
+                    top_n=top_n
+                )
+
+                results["email"] = email_result
+                if email_result["success"]:
+                    logger.info(
+                        f"✓ Email sent successfully with "
+                        f"{email_result['articles_count']} articles"
+                    )
+                    results["success"] = True
+                else:
+                    logger.error(
+                        f"✗ Failed to send email: "
+                        f"{email_result.get('error', 'Unknown error')}"
+                    )
+
     except Exception as e:
         logger.error(f"Pipeline failed with error: {e}", exc_info=True)
         results["error"] = str(e)
@@ -89,7 +114,13 @@ def run_daily_pipeline(hours: int = 24, top_n: int = 10) -> dict:
     logger.info(f"Scraped: {results['scraping']}")
     logger.info(f"Processed: {results['processing']}")
     logger.info(f"Digests: {results['digests']}")
-    logger.info(f"Email: {'Sent' if results['success'] else 'Failed'}")
+    if results["email"].get("skipped"):
+        email_status = "Skipped"
+    elif results["email"].get("success"):
+        email_status = "Sent"
+    else:
+        email_status = "Failed"
+    logger.info(f"Email: {email_status}")
     logger.info("=" * 60)
     
     return results
