@@ -30,6 +30,7 @@ def run_daily_pipeline(hours: int = 24, top_n: int = 10) -> dict:
         "processing": {},
         "digests": {},
         "email": {},
+        "status": "FAILED",
         "success": False
     }
     
@@ -69,6 +70,7 @@ def run_daily_pipeline(hours: int = 24, top_n: int = 10) -> dict:
                 "skipped": True,
                 "reason": "No new digests created"
             }
+            results["status"] = "NO_NEW_ARTICLES"
             results["success"] = True
         else:
             logger.info("\n[5/5] Generating and sending email digest...")
@@ -77,29 +79,20 @@ def run_daily_pipeline(hours: int = 24, top_n: int = 10) -> dict:
             
             if email_result["success"]:
                 logger.info(f"✓ Email sent successfully with {email_result['articles_count']} articles")
+
+                results["status"] = "EMAIL_SENT"
                 results["success"] = True
+
             else:
-                logger.error(f"✗ Failed to send email: {email_result.get('error', 'Unknown error')}")
-                email_result = send_digest_email(
-                    hours=hours,
-                    top_n=top_n
+                logger.error(
+                    f"✗ Failed to send email: "
+                    f"{email_result.get('error', 'Unknown error')}"
                 )
-
-                results["email"] = email_result
-                if email_result["success"]:
-                    logger.info(
-                        f"✓ Email sent successfully with "
-                        f"{email_result['articles_count']} articles"
-                    )
-                    results["success"] = True
-                else:
-                    logger.error(
-                        f"✗ Failed to send email: "
-                        f"{email_result.get('error', 'Unknown error')}"
-                    )
-
+                results["status"] = "FAILED"
+                    
     except Exception as e:
         logger.error(f"Pipeline failed with error: {e}", exc_info=True)
+        results["status"] = "FAILED"
         results["error"] = str(e)
     
     end_time = datetime.now()
